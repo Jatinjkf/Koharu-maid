@@ -74,7 +74,7 @@ class KoharuAI {
             headers: {
                 'Content-Type': 'application/json',
                 'Content-Length': Buffer.byteLength(data),
-                'Connection': 'keep-alive' // Keep the line stable
+                'Connection': 'keep-alive'
             }
         };
 
@@ -84,24 +84,29 @@ class KoharuAI {
                 res.on('data', (d) => { responseData += d; });
                 res.on('end', () => {
                     if (res.statusCode !== 200) {
-                        console.error(`[AI] Error ${res.statusCode}:`, responseData);
+                        console.error(`[AI] Error ${res.statusCode} for ${userName}`);
                         return resolve(null);
                     }
                     try {
                         const json = JSON.parse(responseData);
                         if (json.candidates && json.candidates[0].content) {
-                            resolve(json.candidates[0].content.parts[0].text.trim());
-                        } else { resolve(null); }
+                            const text = json.candidates[0].content.parts[0].text.trim();
+                            console.log(`[AI] Success for ${userName}: "${text.substring(0, 30)}..."`);
+                            resolve(text);
+                        } else { 
+                            console.warn(`[AI] No content returned for ${userName}`);
+                            resolve(null); 
+                        }
                     } catch (e) { resolve(null); }
                 });
             });
 
             req.on('error', (e) => {
-                console.error("[AI] Socket/Request Error:", e.message);
+                console.error("[AI] Socket Error:", e.message);
                 resolve(null);
             });
 
-            req.setTimeout(8000, () => { req.destroy(); resolve(null); }); // Increased to 8s
+            req.setTimeout(8000, () => { req.destroy(); resolve(null); });
             req.write(data);
             req.end();
         });
