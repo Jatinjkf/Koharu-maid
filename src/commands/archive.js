@@ -30,19 +30,21 @@ module.exports = {
         const userId = interaction.user.id;
         const guildId = interaction.guild.id;
 
+        await interaction.deferReply({ ephemeral: true });
+
         if (sub === 'list') {
             const items = await Item.find({ userId, guildId, isArchived: true }).sort({ archiveSeq: 1 });
-            if (items.length === 0) return interaction.reply({ content: 'The archive room is empty, Master.', ephemeral: true });
+            if (items.length === 0) return interaction.editReply({ content: 'The archive room is empty, Master.' });
             
             const list = items.map(i => `**#${i.archiveSeq || 'Old'}** - ${i.name}`).join('\n');
             const embed = new EmbedBuilder().setColor(0x808080).setTitle('🗄️ Archives').setDescription(list);
-            return interaction.reply({ embeds: [embed], ephemeral: true });
+            return interaction.editReply({ embeds: [embed] });
         }
 
         if (sub === 'revive') {
             const id = interaction.options.getString('item');
             let item = await Item.findById(id) || await Item.findOne({ userId, guildId, archiveSeq: parseInt(id), isArchived: true });
-            if (!item) return interaction.reply({ content: 'I cannot find that archive, Master.', ephemeral: true });
+            if (!item) return interaction.editReply({ content: 'I cannot find that archive, Master.' });
 
             item.isArchived = false;
             item.archiveSeq = null; 
@@ -54,11 +56,10 @@ module.exports = {
             await item.save();
 
             await updateDashboard(interaction.client, guildId, userId);
-            return interaction.reply({ content: `✅ Restored "**${item.name}**" to Dashboard (#${item.activeSeq}).`, ephemeral: true });
+            return interaction.editReply({ content: `✅ Restored "**${item.name}**" to Dashboard (#${item.activeSeq}).` });
         }
 
         if (sub === 'send-all') {
-            await interaction.deferReply({ ephemeral: true });
             const items = await Item.find({ userId, guildId, isArchived: true }).sort({ archiveSeq: 1 });
             if (items.length === 0) return interaction.editReply('Archive is empty.');
             
@@ -67,12 +68,10 @@ module.exports = {
             for (let i = 0; i < items.length; i += 10) {
                 const chunk = items.slice(i, i + 10);
                 const attachments = [];
-                
                 for (const it of chunk) {
                     const freshUrl = await getFreshImageUrl(interaction.client, it);
                     attachments.push(freshUrl);
                 }
-
                 try {
                     await interaction.user.send({ content: `📜 **Archive Batch ${Math.floor(i/10)+1}**`, files: attachments });
                 } catch (e) {
